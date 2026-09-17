@@ -12,6 +12,7 @@ These public, demo-only passwords must not be used for real users. Email is the 
 
 | Role | Email | Password |
 |---|---|---|
+| Admin | demo.admin@example.test | DemoOnly!Admin1 |
 | Ranger | demo.ranger1@example.test | DemoOnly!Ranger1 |
 | Ranger | demo.ranger2@example.test | DemoOnly!Ranger2 |
 | Scout | demo.scout1@example.test | DemoOnly!Scout1 |
@@ -19,7 +20,7 @@ These public, demo-only passwords must not be used for real users. Email is the 
 | Scout | demo.scout3@example.test | DemoOnly!Scout3 |
 | Scout | demo.scout4@example.test | DemoOnly!Scout4 |
 
-Six accounts currently exist. The requested two poacher accounts are pending clarification: the original role enum permits scout, tourism, ranger, zone_supervisor, and admin only. No poacher role or substitute has been invented. “Scotts” was interpreted as scouts. No admin account was added; the application's existing first-admin registration remains available.
+Seven accounts currently exist, including the subsequently requested demo administrator. The requested two poacher accounts are pending clarification: the original role enum permits scout, tourism, ranger, zone_supervisor, and admin only. No poacher role or substitute has been invented. “Scotts” was interpreted as scouts. The requested demo administrator has been added; the application now disables its first-admin registration form.
 
 ## Database safety
 
