@@ -97,7 +97,7 @@ try {
                 $user['id']
             ]);
             
-            $userId = $pdo->lastInsertId();
+            $userId = $pdo->query('SELECT lastval()')->fetchColumn();
             logAudit($user['id'], 'create_user', ['email' => $data['email'], 'role' => $data['role']]);
             
             echo json_encode([

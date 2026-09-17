@@ -553,7 +553,7 @@ class AIEngine
                 $pre['snapshot_url'], $pre['clip_url'],
                 $pre['lat'], $pre['lng'],
             ]);
-            return (int)$this->pdo->lastInsertId();
+            return (int)$this->pdo->query('SELECT lastval()')->fetchColumn();
         } catch (PDOException $e) {
             error_log('[WS-AI] persistDetection: ' . $e->getMessage());
             return null;
@@ -584,7 +584,7 @@ class AIEngine
                 $detectionId, $pre['zone_id'], $alertType, $threat['level'],
                 $title, $desc, $pre['lat'], $pre['lng'],
             ]);
-            return (int)$this->pdo->lastInsertId();
+            return (int)$this->pdo->query('SELECT lastval()')->fetchColumn();
         } catch (PDOException $e) {
             error_log('[WS-AI] createAlert: ' . $e->getMessage());
             return null;

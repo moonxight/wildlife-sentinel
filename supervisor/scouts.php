@@ -124,7 +124,7 @@ $scouts = safeFetchAll($pdo, "
 $totalScouts    = count($scouts);
 $activeScouts   = count(array_filter($scouts, fn($s) => $s['is_active']));
 $onlineScouts   = count(array_filter($scouts, fn($s) => $s['is_online']));
-$reportsToday   = safeCount($pdo, "SELECT COUNT(*) as count FROM incidents WHERE zone_id = ? AND DATE(reported_at) = CURDATE()", [$activeZoneId]);
+$reportsToday   = safeCount($pdo, 'SELECT COUNT(*) as count FROM incidents WHERE zone_id = ? AND DATE(reported_at) = CURRENT_DATE', [$activeZoneId]);
 ?>
 <!DOCTYPE html>
 <html lang="en">

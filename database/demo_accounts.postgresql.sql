@@ -1,5 +1,4 @@
 -- OPTIONAL: public demonstration accounts only. Never resets an existing account.
-BEGIN;
 INSERT INTO users (email,password_hash,full_name,role,zone_id,is_active) SELECT 'demo.admin@example.test','$2y$10$PWs07UaLIjF.h/WtXgDmA.rue.StIopvZxJkg3zhmx7gO3aMKy29G','Demo Administrator','admin', id,1 FROM zones WHERE is_active=1 ORDER BY id LIMIT 1 ON CONFLICT (email) DO NOTHING;
 INSERT INTO users (email,password_hash,full_name,role,zone_id,is_active) SELECT 'demo.ranger1@example.test','$2y$10$20ha6OUx072hXhWNM01J7.rHj4Tmb2Tnk9S.I//HNbpEqhk08SSNO','Demo Ranger One','ranger', id,1 FROM zones WHERE is_active=1 ORDER BY id LIMIT 1 ON CONFLICT (email) DO NOTHING;
 INSERT INTO ranger_availability (ranger_id,is_available) SELECT id,1 FROM users WHERE email='demo.ranger1@example.test' AND role='ranger' ON CONFLICT (ranger_id) DO NOTHING;
@@ -9,4 +8,3 @@ INSERT INTO users (email,password_hash,full_name,role,zone_id,is_active) SELECT 
 INSERT INTO users (email,password_hash,full_name,role,zone_id,is_active) SELECT 'demo.scout2@example.test','$2y$10$KA7VZkrcqACMQLZjnfX2uewasa6HqHP7E8WxCrmtkiCVPex56QSh6','Demo Scout Two','scout', id,1 FROM zones WHERE is_active=1 ORDER BY id LIMIT 1 ON CONFLICT (email) DO NOTHING;
 INSERT INTO users (email,password_hash,full_name,role,zone_id,is_active) SELECT 'demo.scout3@example.test','$2y$10$xko/fp25G3kkM7Qt16X7Fuax.pYs2M/fEAyQJBLY6ziB2vRpOuu9m','Demo Scout Three','scout', id,1 FROM zones WHERE is_active=1 ORDER BY id LIMIT 1 ON CONFLICT (email) DO NOTHING;
 INSERT INTO users (email,password_hash,full_name,role,zone_id,is_active) SELECT 'demo.scout4@example.test','$2y$10$2Wd5vIcxxVoqDo0UmQjrq.lKCRPKKeZ17W98V5dce.tYEiK/0RWiG','Demo Scout Four','scout', id,1 FROM zones WHERE is_active=1 ORDER BY id LIMIT 1 ON CONFLICT (email) DO NOTHING;
-COMMIT;

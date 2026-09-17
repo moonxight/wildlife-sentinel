@@ -126,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     VALUES (?, ?, ?, ?, ?, 1, 0, NOW())
                 ");
                 $stmt->execute([$zoneId, $alarmName, $alarmType, $lat, $lng]);
-                $newId = (int)$pdo->lastInsertId();
+                $newId = (int)$pdo->query('SELECT lastval()')->fetchColumn();
                 logAudit($user['id'], 'create_alarm', ['alarm_id' => $newId, 'zone_id' => $zoneId]);
                 $message = "✅ Alarm '{$alarmName}' added successfully.";
             } catch (PDOException $e) {
@@ -219,7 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             (alarm_id, zone_id, triggered_by, trigger_reason, triggered_at)
                         VALUES (?, ?, 'manual', 'Manual trigger by admin', NOW())
                     ")->execute([$id, $a['zone_id']]);
-                    $triggerId = (int)$pdo->lastInsertId();
+                    $triggerId = (int)$pdo->query('SELECT lastval()')->fetchColumn();
 
                     $pdo->prepare("
                         UPDATE alarm_systems
@@ -307,15 +307,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $message = 'ℹ️ This alarm was already stopped at ' . htmlspecialchars($t['stopped_at']) . '.';
                     $messageType = 'success';
                 } else {
-                    $stmt = $pdo->prepare("
+                    $stmt = $pdo->prepare('
                         UPDATE alarm_triggers SET
                             stopped_at = NOW(),
-                            duration_seconds = TIMESTAMPDIFF(SECOND, triggered_at, NOW()),
+                            duration_seconds = TRUNC(EXTRACT(EPOCH FROM ((NOW()) - (triggered_at))) / 1),
                             was_acknowledged = 1,
                             acknowledged_by = ?,
                             acknowledged_at = NOW()
                         WHERE id = ? AND stopped_at IS NULL
-                    ");
+                    ');
                     $stmt->execute([$user['id'], $triggerId]);
                     $affected = $stmt->rowCount();
 
@@ -378,7 +378,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt = $pdo->prepare("
                     UPDATE alarm_triggers SET
                         stopped_at = NOW(),
-                        duration_seconds = TIMESTAMPDIFF(SECOND, triggered_at, NOW()),
+                        duration_seconds = TRUNC(EXTRACT(EPOCH FROM ((NOW()) - (triggered_at))) / 1),
                         was_acknowledged = 1,
                         acknowledged_by = ?,
                         acknowledged_at = NOW()
@@ -504,7 +504,7 @@ $stats = [
     'active'          => safeCount($pdo, "SELECT COUNT(*) as count FROM alarm_systems WHERE is_active = 1"),
     'inactive'        => safeCount($pdo, "SELECT COUNT(*) as count FROM alarm_systems WHERE is_active = 0"),
     'active_triggers' => safeCount($pdo, "SELECT COUNT(*) as count FROM alarm_triggers WHERE stopped_at IS NULL"),
-    'today_triggers'  => safeCount($pdo, "SELECT COUNT(*) as count FROM alarm_triggers WHERE DATE(triggered_at) = CURDATE()"),
+    'today_triggers'  => safeCount($pdo, 'SELECT COUNT(*) as count FROM alarm_triggers WHERE DATE(triggered_at) = CURRENT_DATE'),
     'total_triggers'  => safeCount($pdo, "SELECT COUNT(*) as count FROM alarm_triggers"),
 ];
 

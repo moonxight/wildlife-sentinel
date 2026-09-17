@@ -107,11 +107,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                    i.acknowledged_at, i.resolved_at,
                    u.full_name AS reporter_name, u.phone AS reporter_phone,
                    z.name AS zone_name,
-                   (SELECT GROUP_CONCAT(DISTINCT ru.full_name SEPARATOR '; ')
+                   (SELECT string_agg(DISTINCT ru.full_name::text, '; ')
                       FROM incident_responses ir
                       JOIN users ru ON ir.ranger_id = ru.id
                      WHERE ir.incident_id = i.id) AS responders,
-                   (SELECT GROUP_CONCAT(DISTINCT au.full_name SEPARATOR '; ')
+                   (SELECT string_agg(DISTINCT au.full_name::text, '; ')
                       FROM incident_assignments ia
                       JOIN users au ON ia.ranger_id = au.id
                      WHERE ia.incident_id = i.id) AS assignees
@@ -170,7 +170,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT i.*, u.full_name AS reporter_name, u.phone AS reporter_phone,
                z.name AS zone_name,
-               (SELECT GROUP_CONCAT(DISTINCT ru.full_name SEPARATOR ', ')
+               (SELECT string_agg(DISTINCT ru.full_name::text, ', ')
                   FROM incident_responses ir
                   JOIN users ru ON ir.ranger_id = ru.id
                  WHERE ir.incident_id = i.id) AS responders,
@@ -296,7 +296,7 @@ if ($reportMode !== '') {
                    i.reported_at, i.acknowledged_at, i.resolved_at,
                    i.zone_id, z.name AS zone_name,
                    u.full_name AS reporter_name, u.phone AS reporter_phone,
-                   (SELECT GROUP_CONCAT(DISTINCT ru.full_name SEPARATOR ', ')
+                   (SELECT string_agg(DISTINCT ru.full_name::text, ', ')
                       FROM incident_responses ir
                       JOIN users ru ON ir.ranger_id = ru.id
                      WHERE ir.incident_id = i.id) AS responders

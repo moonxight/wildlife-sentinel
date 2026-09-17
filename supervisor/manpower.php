@@ -201,13 +201,13 @@ $availableRangers = safeFetchAll($pdo, "
 $totalRequests    = count($requests);
 $unreadRequests   = count(array_filter($requests, fn($r) => empty($r['is_read'])));
 $criticalRequests = count(array_filter($requests, fn($r) => ($r['severity'] ?? '') === 'critical'));
-$requestsToday    = safeCount($pdo, "
+$requestsToday    = safeCount($pdo, '
     SELECT COUNT(*) as count FROM messages m
     LEFT JOIN users s ON m.sender_id = s.id
-    WHERE m.message_type = 'manpower_request'
-      AND DATE(m.created_at) = CURDATE()
+    WHERE m.message_type = \'manpower_request\'
+      AND DATE(m.created_at) = CURRENT_DATE
       AND (m.zone_id = ? OR (m.zone_id IS NULL AND s.zone_id = ?))
-", [$activeZoneId, $activeZoneId]);
+', [$activeZoneId, $activeZoneId]);
 
 $zoneName = function_exists('getZoneName') ? (getZoneName($activeZoneId) ?: 'Your Zone') : 'Your Zone';
 ?>

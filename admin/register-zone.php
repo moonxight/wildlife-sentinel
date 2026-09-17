@@ -126,7 +126,7 @@ if (!function_exists('circleGeoJSON')) {
 // ============================================================
 $zoneCols = [];
 try {
-    $colStmt = $pdo->query("SHOW COLUMNS FROM zones");
+    $colStmt = $pdo->query('SELECT column_name AS "Field", data_type AS "Type", is_nullable AS "Null", column_default AS "Default" FROM information_schema.columns WHERE table_schema=current_schema() AND table_name=\'zones\' ORDER BY ordinal_position');
     while ($c = $colStmt->fetch(PDO::FETCH_ASSOC)) {
         $zoneCols[$c['Field']] = true;
     }
@@ -204,15 +204,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $user['id']
                 ]);
 
-                $supervisorId = (int)$pdo->lastInsertId();
+                $supervisorId = (int)$pdo->query('SELECT lastval()')->fetchColumn();
 
                 // Zone notification settings — respects global toggles
                 try {
-                    $pdo->prepare("
+                    $pdo->prepare('
                         INSERT INTO zone_notification_settings (zone_id, sms_enabled, alarm_enabled, ai_detection_enabled)
                         VALUES (?, ?, ?, ?)
-                        ON DUPLICATE KEY UPDATE zone_id = zone_id
-                    ")->execute([
+                         ON CONFLICT (zone_id) DO UPDATE SET  zone_id = EXCLUDED.zone_id
+                    ')->execute([
                         $zoneId,
                         $setSmsEnabled ? 1 : 0,
                         $setNotifyAlarm ? 1 : 0,
@@ -383,7 +383,7 @@ try {
         FROM zones
         WHERE " . ($hasIsRegistered ? "is_registered = 0" : "1=1") . "
           AND is_active = 1
-        ORDER BY " . ($hasParkType ? "FIELD(park_type,'national_park','gma','other'), " : "") . "name
+        ORDER BY " . ($hasParkType ? 'CASE park_type WHEN \'national_park\' THEN 1 WHEN \'gma\' THEN 2 WHEN \'other\' THEN 3 ELSE 0 END, ' : "") . "name
     ")->fetchAll();
 } catch (PDOException $e) {
     error_log('[WS-ZONE] availableParks: ' . $e->getMessage());

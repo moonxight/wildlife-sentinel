@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $content,
                     $urgency === 'critical' ? 'critical' : 'high',
                 ]);
-                $mid = $pdo->lastInsertId();
+                $mid = $pdo->query('SELECT lastval()')->fetchColumn();
 
                 // Notify supervisors
                 $recipients = safeFetchAll($pdo, "
@@ -129,13 +129,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // ============================================================
 // FETCH MY ACTIVE INCIDENTS (for the dropdown)
 // ============================================================
-$myIncidents = safeFetchAll($pdo, "
+$myIncidents = safeFetchAll($pdo, '
     SELECT id, category, severity, status, location_lat, location_lng
     FROM incidents
     WHERE acknowledged_by = ?
-      AND status IN ('acknowledged','in_progress')
-    ORDER BY FIELD(severity,'critical','high','medium','low'), reported_at DESC
-", [$user['id']]);
+      AND status IN (\'acknowledged\',\'in_progress\')
+    ORDER BY CASE severity WHEN \'critical\' THEN 1 WHEN \'high\' THEN 2 WHEN \'medium\' THEN 3 WHEN \'low\' THEN 4 ELSE 0 END, reported_at DESC
+', [$user['id']]);
 
 // ============================================================
 // RECENT MANPOWER REQUESTS I'VE SENT

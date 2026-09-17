@@ -219,7 +219,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
             try {
                 $pdo->beginTransaction();
 
-                $check = $pdo->query("SELECT COUNT(*) AS c FROM users WHERE role = 'admin' FOR UPDATE");
+                $pdo->exec('LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE');
+                $check = $pdo->query("SELECT COUNT(*) AS c FROM users WHERE role = 'admin'");
                 if ((int)($check->fetch()['c'] ?? 0) > 0) {
                     $pdo->rollBack();
                     $error = 'An admin account already exists. Only one admin can be registered.';
@@ -242,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
                                 INSERT INTO zones (name, description, center_lat, center_lng, is_active)
                                 VALUES ('Headquarters','Main Administrative Zone - Lusaka, Zambia',-15.3875,28.3228,1)
                             ");
-                            $zoneId = (int)$pdo->lastInsertId();
+                            $zoneId = (int)$pdo->query('SELECT lastval()')->fetchColumn();
                         }
 
                         $hash = hashPassword($password);
@@ -258,16 +259,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
                             $fullName,
                             $zoneId,
                         ]);
-                        $newId = (int)$pdo->lastInsertId();
+                        $newId = (int)$pdo->query('SELECT lastval()')->fetchColumn();
 
                         // Seed per-admin AI settings row
                         try {
-                            $pdo->prepare("INSERT IGNORE INTO admin_ai_settings (admin_id) VALUES (?)")->execute([$newId]);
+                            $pdo->prepare('INSERT INTO admin_ai_settings (admin_id) VALUES (?) ON CONFLICT DO NOTHING')->execute([$newId]);
                         } catch (Throwable $e) { /* optional */ }
 
                         // Seed per-user preferences
                         try {
-                            $pdo->prepare("INSERT IGNORE INTO user_preferences (user_id) VALUES (?)")->execute([$newId]);
+                            $pdo->prepare('INSERT INTO user_preferences (user_id) VALUES (?) ON CONFLICT DO NOTHING')->execute([$newId]);
                         } catch (Throwable $e) { /* optional */ }
 
                         $pdo->commit();

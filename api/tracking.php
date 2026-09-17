@@ -26,17 +26,17 @@ try {
             $heading = $data['heading'] ?? null;
             $speed = $data['speed'] ?? null;
             
-            $stmt = $pdo->prepare("
+            $stmt = $pdo->prepare('
                 INSERT INTO ranger_live_tracking (ranger_id, current_lat, current_lng, heading, speed, last_update, is_offline)
                 VALUES (?, ?, ?, ?, ?, NOW(), ?)
-                ON DUPLICATE KEY UPDATE 
+                 ON CONFLICT (ranger_id) DO UPDATE SET  
                     current_lat = ?, 
                     current_lng = ?, 
                     heading = ?, 
                     speed = ?, 
                     last_update = NOW(),
                     is_offline = ?
-            ");
+            ');
             
             $isOffline = isset($data['is_offline']) ? 1 : 0;
             $stmt->execute([
@@ -119,22 +119,20 @@ try {
                 throw new Exception('Location required');
             }
             
-            $stmt = $pdo->prepare("
-                SELECT u.id, u.full_name, rlt.current_lat, rlt.current_lng,
+            $stmt = $pdo->prepare('
+                SELECT * FROM (SELECT u.id, u.full_name, rlt.current_lat, rlt.current_lng,
                        (6371 * acos(cos(radians(?)) * cos(radians(rlt.current_lat)) * 
                        cos(radians(rlt.current_lng) - radians(?)) + sin(radians(?)) * 
                        sin(radians(rlt.current_lat)))) AS distance
                 FROM users u
                 JOIN ranger_live_tracking rlt ON u.id = rlt.ranger_id
                 JOIN ranger_availability ra ON u.id = ra.ranger_id
-                WHERE u.role = 'ranger' 
+                WHERE u.role = \'ranger\' 
                   AND u.is_active = 1 
                   AND u.id != ?
                   AND ra.is_available = 1
-                  AND rlt.current_lat IS NOT NULL
-                HAVING distance < ?
-                ORDER BY distance ASC
-            ");
+                  AND rlt.current_lat IS NOT NULL) AS nearby WHERE distance < ? ORDER BY distance ASC
+            ');
             $stmt->execute([$lat, $lng, $lat, $user['id'], $radius]);
             $rangers = $stmt->fetchAll();
             

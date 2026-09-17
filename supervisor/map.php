@@ -109,7 +109,7 @@ function ws_fetchScouts(PDO $pdo, int $zoneId): array {
 }
 
 function ws_fetchIncidents(PDO $pdo, int $zoneId): array {
-    return safeFetchAll($pdo, "
+    return safeFetchAll($pdo, '
         SELECT i.id, i.category, i.severity, i.status, i.description,
                i.location_lat, i.location_lng, i.reported_at,
                u.full_name AS reporter_name, u.phone AS reporter_phone,
@@ -117,35 +117,35 @@ function ws_fetchIncidents(PDO $pdo, int $zoneId): array {
         FROM incidents i
         LEFT JOIN users u ON i.reporter_id = u.id
         LEFT JOIN users r ON i.acknowledged_by = r.id
-        WHERE i.zone_id = ? AND i.status NOT IN ('resolved','closed')
-        ORDER BY FIELD(i.severity,'critical','high','medium','low'), i.reported_at DESC
+        WHERE i.zone_id = ? AND i.status NOT IN (\'resolved\',\'closed\')
+        ORDER BY CASE i.severity WHEN \'critical\' THEN 1 WHEN \'high\' THEN 2 WHEN \'medium\' THEN 3 WHEN \'low\' THEN 4 ELSE 0 END, i.reported_at DESC
         LIMIT 100
-    ", [$zoneId]);
+    ', [$zoneId]);
 }
 
 function ws_fetchAIAnomalies(PDO $pdo, int $zoneId): array {
-    return safeFetchAll($pdo, "
+    return safeFetchAll($pdo, '
         SELECT a.id, a.type, a.severity, a.description, a.confidence,
                a.location_lat, a.location_lng, a.radius_meters,
                a.detected_at,
                u.full_name AS subject_name, u.role AS subject_role
         FROM ai_anomalies a
         LEFT JOIN users u ON (a.ranger_id = u.id OR a.scout_id = u.id)
-        WHERE a.zone_id = ? AND a.detected_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        WHERE a.zone_id = ? AND a.detected_at >= (NOW() - (24) * INTERVAL \'1 hour\')
         ORDER BY a.detected_at DESC
         LIMIT 50
-    ", [$zoneId]);
+    ', [$zoneId]);
 }
 
 function ws_fetchPatrolRoutes(PDO $pdo, array $rangers): array {
     $routes = [];
     foreach ($rangers as $r) {
-        $routes[$r['id']] = safeFetchAll($pdo, "
+        $routes[$r['id']] = safeFetchAll($pdo, '
             SELECT lat, lng, timestamp
             FROM ranger_location_history
-            WHERE ranger_id = ? AND timestamp >= DATE_SUB(NOW(), INTERVAL 2 HOUR)
+            WHERE ranger_id = ? AND timestamp >= (NOW() - (2) * INTERVAL \'1 hour\')
             ORDER BY timestamp ASC
-        ", [$r['id']]);
+        ', [$r['id']]);
     }
     return $routes;
 }

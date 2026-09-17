@@ -83,52 +83,52 @@ $globalCctvSnapshotDir = (string) ws_zs_global('cctv_snapshot_dir', 'uploads/cct
 // AUTO-CREATE TABLES
 // ============================================================
 try {
-    $pdo->exec("
+    $pdo->exec('
         CREATE TABLE IF NOT EXISTS zone_notification_settings (
-            zone_id INT(11) PRIMARY KEY,
-            sms_enabled TINYINT(1) DEFAULT 1,
-            alarm_enabled TINYINT(1) DEFAULT 1,
-            ai_detection_enabled TINYINT(1) DEFAULT 1,
+            zone_id INTEGER PRIMARY KEY,
+            sms_enabled SMALLINT DEFAULT 1,
+            alarm_enabled SMALLINT DEFAULT 1,
+            ai_detection_enabled SMALLINT DEFAULT 1,
             alarm_delay_seconds INT DEFAULT 120,
             ai_confidence_threshold INT DEFAULT 70,
-            auto_create_incidents TINYINT(1) DEFAULT 1,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
+            auto_create_incidents SMALLINT DEFAULT 1,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ');
 
-    $pdo->exec("
+    $pdo->exec('
         CREATE TABLE IF NOT EXISTS zone_system_settings (
-            zone_id INT(11) PRIMARY KEY,
-            ai_enabled TINYINT(1) DEFAULT 1,
+            zone_id INTEGER PRIMARY KEY,
+            ai_enabled SMALLINT DEFAULT 1,
             ai_confidence_min INT DEFAULT 70,
-            ai_auto_create_alert TINYINT(1) DEFAULT 1,
-            ai_auto_trigger_alarm TINYINT(1) DEFAULT 0,
-            ai_detection_types VARCHAR(255) DEFAULT 'human,animal,vehicle,fire,gunshot',
+            ai_auto_create_alert SMALLINT DEFAULT 1,
+            ai_auto_trigger_alarm SMALLINT DEFAULT 0,
+            ai_detection_types VARCHAR(255) DEFAULT \'human,animal,vehicle,fire,gunshot\',
             cctv_retention_days INT DEFAULT 30,
-            cctv_default_quality VARCHAR(20) DEFAULT '1080p',
-            cctv_auto_record TINYINT(1) DEFAULT 1,
-            cctv_snapshot_dir VARCHAR(255) DEFAULT 'uploads/cctv/',
-            alarm_default_type VARCHAR(20) DEFAULT 'siren',
+            cctv_default_quality VARCHAR(20) DEFAULT \'1080p\',
+            cctv_auto_record SMALLINT DEFAULT 1,
+            cctv_snapshot_dir VARCHAR(255) DEFAULT \'uploads/cctv/\',
+            alarm_default_type VARCHAR(20) DEFAULT \'siren\',
             alarm_siren_duration INT DEFAULT 180,
-            alarm_auto_stop TINYINT(1) DEFAULT 1,
-            alarm_sms_blast TINYINT(1) DEFAULT 1,
-            notif_sms TINYINT(1) DEFAULT 1,
-            notif_email TINYINT(1) DEFAULT 0,
-            notif_push TINYINT(1) DEFAULT 1,
-            notif_on_incident TINYINT(1) DEFAULT 1,
-            notif_on_ai_alert TINYINT(1) DEFAULT 1,
-            notif_on_alarm TINYINT(1) DEFAULT 1,
-            notif_on_manpower TINYINT(1) DEFAULT 1,
-            notif_offline_reminder TINYINT(1) DEFAULT 1,
-            perm_rangers_ack TINYINT(1) DEFAULT 1,
-            perm_rangers_trigger_alarm TINYINT(1) DEFAULT 0,
-            perm_rangers_request_manpower TINYINT(1) DEFAULT 1,
-            perm_scouts_report TINYINT(1) DEFAULT 1,
-            perm_scouts_see_sensitive TINYINT(1) DEFAULT 0,
-            perm_tourism_see_risk TINYINT(1) DEFAULT 1,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
+            alarm_auto_stop SMALLINT DEFAULT 1,
+            alarm_sms_blast SMALLINT DEFAULT 1,
+            notif_sms SMALLINT DEFAULT 1,
+            notif_email SMALLINT DEFAULT 0,
+            notif_push SMALLINT DEFAULT 1,
+            notif_on_incident SMALLINT DEFAULT 1,
+            notif_on_ai_alert SMALLINT DEFAULT 1,
+            notif_on_alarm SMALLINT DEFAULT 1,
+            notif_on_manpower SMALLINT DEFAULT 1,
+            notif_offline_reminder SMALLINT DEFAULT 1,
+            perm_rangers_ack SMALLINT DEFAULT 1,
+            perm_rangers_trigger_alarm SMALLINT DEFAULT 0,
+            perm_rangers_request_manpower SMALLINT DEFAULT 1,
+            perm_scouts_report SMALLINT DEFAULT 1,
+            perm_scouts_see_sensitive SMALLINT DEFAULT 0,
+            perm_tourism_see_risk SMALLINT DEFAULT 1,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ');
 } catch (PDOException $e) {
     error_log('[WS-ZS] DDL: ' . $e->getMessage());
 }
@@ -202,19 +202,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         try {
-            $pdo->prepare("
+            $pdo->prepare('
                 INSERT INTO zone_system_settings
                     (zone_id, ai_enabled, ai_confidence_min, ai_auto_create_alert,
                      ai_auto_trigger_alarm, ai_detection_types, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE
-                    ai_enabled = VALUES(ai_enabled),
-                    ai_confidence_min = VALUES(ai_confidence_min),
-                    ai_auto_create_alert = VALUES(ai_auto_create_alert),
-                    ai_auto_trigger_alarm = VALUES(ai_auto_trigger_alarm),
-                    ai_detection_types = VALUES(ai_detection_types),
+                 ON CONFLICT (zone_id) DO UPDATE SET 
+                    ai_enabled = EXCLUDED.ai_enabled,
+                    ai_confidence_min = EXCLUDED.ai_confidence_min,
+                    ai_auto_create_alert = EXCLUDED.ai_auto_create_alert,
+                    ai_auto_trigger_alarm = EXCLUDED.ai_auto_trigger_alarm,
+                    ai_detection_types = EXCLUDED.ai_detection_types,
                     updated_at = NOW()
-            ")->execute([$activeZoneId, $enabled, $minConf, $autoAlert, $autoAlarm, $types]);
+            ')->execute([$activeZoneId, $enabled, $minConf, $autoAlert, $autoAlarm, $types]);
 
             logAudit($user['id'], 'update_zone_settings', ['zone_id' => $activeZoneId, 'section' => 'ai']);
             if (!$message) $message = '✅ AI settings saved.';
@@ -235,18 +235,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if (!in_array($quality, ['720p','1080p','1440p','4K'], true)) $quality = '1080p';
 
         try {
-            $pdo->prepare("
+            $pdo->prepare('
                 INSERT INTO zone_system_settings
                     (zone_id, cctv_retention_days, cctv_default_quality,
                      cctv_auto_record, cctv_snapshot_dir, updated_at)
                 VALUES (?, ?, ?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE
-                    cctv_retention_days = VALUES(cctv_retention_days),
-                    cctv_default_quality = VALUES(cctv_default_quality),
-                    cctv_auto_record = VALUES(cctv_auto_record),
-                    cctv_snapshot_dir = VALUES(cctv_snapshot_dir),
+                 ON CONFLICT (zone_id) DO UPDATE SET 
+                    cctv_retention_days = EXCLUDED.cctv_retention_days,
+                    cctv_default_quality = EXCLUDED.cctv_default_quality,
+                    cctv_auto_record = EXCLUDED.cctv_auto_record,
+                    cctv_snapshot_dir = EXCLUDED.cctv_snapshot_dir,
                     updated_at = NOW()
-            ")->execute([$activeZoneId, $retention, $quality, $autoRecord, $snapshotDir]);
+            ')->execute([$activeZoneId, $retention, $quality, $autoRecord, $snapshotDir]);
 
             logAudit($user['id'], 'update_zone_settings', ['zone_id' => $activeZoneId, 'section' => 'cctv']);
             $message = '✅ CCTV settings saved.';
@@ -270,27 +270,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         try {
-            $pdo->prepare("
+            $pdo->prepare('
                 INSERT INTO zone_system_settings
                     (zone_id, alarm_default_type, alarm_siren_duration,
                      alarm_auto_stop, alarm_sms_blast, updated_at)
                 VALUES (?, ?, ?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE
-                    alarm_default_type = VALUES(alarm_default_type),
-                    alarm_siren_duration = VALUES(alarm_siren_duration),
-                    alarm_auto_stop = VALUES(alarm_auto_stop),
-                    alarm_sms_blast = VALUES(alarm_sms_blast),
+                 ON CONFLICT (zone_id) DO UPDATE SET 
+                    alarm_default_type = EXCLUDED.alarm_default_type,
+                    alarm_siren_duration = EXCLUDED.alarm_siren_duration,
+                    alarm_auto_stop = EXCLUDED.alarm_auto_stop,
+                    alarm_sms_blast = EXCLUDED.alarm_sms_blast,
                     updated_at = NOW()
-            ")->execute([$activeZoneId, $defaultType, $sirenDur, $autoStop, $smsBlast]);
+            ')->execute([$activeZoneId, $defaultType, $sirenDur, $autoStop, $smsBlast]);
 
             // Also update zone_notification_settings.alarm_delay_seconds
-            $pdo->prepare("
+            $pdo->prepare('
                 INSERT INTO zone_notification_settings (zone_id, alarm_delay_seconds, updated_at)
                 VALUES (?, ?, NOW())
-                ON DUPLICATE KEY UPDATE
-                    alarm_delay_seconds = VALUES(alarm_delay_seconds),
+                 ON CONFLICT (zone_id) DO UPDATE SET 
+                    alarm_delay_seconds = EXCLUDED.alarm_delay_seconds,
                     updated_at = NOW()
-            ")->execute([$activeZoneId, $delay]);
+            ')->execute([$activeZoneId, $delay]);
 
             logAudit($user['id'], 'update_zone_settings', ['zone_id' => $activeZoneId, 'section' => 'alarms']);
             $message = '✅ Alarm settings saved.';
@@ -321,23 +321,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         if ($onManp=== 1 && !$globalNotifyManpower)        $warnings[] = 'Manpower notifications';
 
         try {
-            $pdo->prepare("
+            $pdo->prepare('
                 INSERT INTO zone_system_settings
                     (zone_id, notif_sms, notif_email, notif_push,
                      notif_on_incident, notif_on_ai_alert, notif_on_alarm,
                      notif_on_manpower, notif_offline_reminder, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE
-                    notif_sms = VALUES(notif_sms),
-                    notif_email = VALUES(notif_email),
-                    notif_push = VALUES(notif_push),
-                    notif_on_incident = VALUES(notif_on_incident),
-                    notif_on_ai_alert = VALUES(notif_on_ai_alert),
-                    notif_on_alarm = VALUES(notif_on_alarm),
-                    notif_on_manpower = VALUES(notif_on_manpower),
-                    notif_offline_reminder = VALUES(notif_offline_reminder),
+                 ON CONFLICT (zone_id) DO UPDATE SET 
+                    notif_sms = EXCLUDED.notif_sms,
+                    notif_email = EXCLUDED.notif_email,
+                    notif_push = EXCLUDED.notif_push,
+                    notif_on_incident = EXCLUDED.notif_on_incident,
+                    notif_on_ai_alert = EXCLUDED.notif_on_ai_alert,
+                    notif_on_alarm = EXCLUDED.notif_on_alarm,
+                    notif_on_manpower = EXCLUDED.notif_on_manpower,
+                    notif_offline_reminder = EXCLUDED.notif_offline_reminder,
                     updated_at = NOW()
-            ")->execute([$activeZoneId, $sms, $email, $push, $onInc, $onAI, $onAlm, $onManp, $offRem]);
+            ')->execute([$activeZoneId, $sms, $email, $push, $onInc, $onAI, $onAlm, $onManp, $offRem]);
 
             logAudit($user['id'], 'update_zone_settings', ['zone_id' => $activeZoneId, 'section' => 'notif']);
 
@@ -364,21 +364,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $tRisk      = isset($_POST['perm_tourism_see_risk']) ? 1 : 0;
 
         try {
-            $pdo->prepare("
+            $pdo->prepare('
                 INSERT INTO zone_system_settings
                     (zone_id, perm_rangers_ack, perm_rangers_trigger_alarm,
                      perm_rangers_request_manpower, perm_scouts_report,
                      perm_scouts_see_sensitive, perm_tourism_see_risk, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE
-                    perm_rangers_ack = VALUES(perm_rangers_ack),
-                    perm_rangers_trigger_alarm = VALUES(perm_rangers_trigger_alarm),
-                    perm_rangers_request_manpower = VALUES(perm_rangers_request_manpower),
-                    perm_scouts_report = VALUES(perm_scouts_report),
-                    perm_scouts_see_sensitive = VALUES(perm_scouts_see_sensitive),
-                    perm_tourism_see_risk = VALUES(perm_tourism_see_risk),
+                 ON CONFLICT (zone_id) DO UPDATE SET 
+                    perm_rangers_ack = EXCLUDED.perm_rangers_ack,
+                    perm_rangers_trigger_alarm = EXCLUDED.perm_rangers_trigger_alarm,
+                    perm_rangers_request_manpower = EXCLUDED.perm_rangers_request_manpower,
+                    perm_scouts_report = EXCLUDED.perm_scouts_report,
+                    perm_scouts_see_sensitive = EXCLUDED.perm_scouts_see_sensitive,
+                    perm_tourism_see_risk = EXCLUDED.perm_tourism_see_risk,
                     updated_at = NOW()
-            ")->execute([$activeZoneId, $rAck, $rTrig, $rMan, $sReport, $sSensitive, $tRisk]);
+            ')->execute([$activeZoneId, $rAck, $rTrig, $rMan, $sReport, $sSensitive, $tRisk]);
 
             logAudit($user['id'], 'update_zone_settings', ['zone_id' => $activeZoneId, 'section' => 'permissions']);
             $message = '✅ Operational permissions saved.';

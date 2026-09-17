@@ -347,7 +347,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $centerLat,
                     $centerLng,
                 ]);
-                $newId = (int)$pdo->lastInsertId();
+                $newId = (int)$pdo->query('SELECT lastval()')->fetchColumn();
                 logAudit($user['id'], 'create_zone', [
                     'zone_id'   => $newId,
                     'name'      => $name,
@@ -413,7 +413,7 @@ $zones = safeFetchAll($pdo, "
               ORDER BY u2.created_at ASC LIMIT 1) AS supervisor_id
     FROM zones z
     $where
-    ORDER BY FIELD(z.park_type,'national_park','gma','other'), z.name
+    ORDER BY CASE z.park_type WHEN 'national_park' THEN 1 WHEN 'gma' THEN 2 WHEN 'other' THEN 3 ELSE 0 END, z.name
 ", $params);
 
 // ============================================================

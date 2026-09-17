@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 INSERT INTO zones (name, description, center_lat, center_lng, is_active) 
                 VALUES ('Headquarters', 'Main Administrative Zone', -15.3875, 28.3228, 1)
             ");
-            $zoneId = $pdo->lastInsertId();
+            $zoneId = $pdo->query('SELECT lastval()')->fetchColumn();
             
             // Create admin user
             $stmt = $pdo->prepare("

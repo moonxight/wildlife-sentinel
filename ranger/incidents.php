@@ -266,7 +266,7 @@ $incidents = safeFetchAll($pdo, "
     LEFT JOIN users r ON i.acknowledged_by = r.id
     LEFT JOIN zones z ON i.zone_id = z.id
     $where
-    ORDER BY FIELD(i.severity,'critical','high','medium','low'), i.reported_at DESC
+    ORDER BY CASE i.severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 ELSE 0 END, i.reported_at DESC
     LIMIT 200
 ", $params);
 

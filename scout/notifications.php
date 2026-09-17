@@ -131,7 +131,7 @@ $stats = [
     'total'  => safeCount($pdo, "SELECT COUNT(*) as count FROM notifications WHERE user_id = ?", [$user['id']]),
     'unread' => safeCount($pdo, "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 0", [$user['id']]),
     'read'   => safeCount($pdo, "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = 1", [$user['id']]),
-    'today'  => safeCount($pdo, "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND DATE(created_at) = CURDATE()", [$user['id']]),
+    'today'  => safeCount($pdo, 'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND DATE(created_at) = CURRENT_DATE', [$user['id']]),
 ];
 
 // ============================================================

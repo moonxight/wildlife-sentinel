@@ -105,7 +105,7 @@ $search       = trim((string)($_GET['search'] ?? ''));
 // ============================================================
 // FETCH REPORTS
 // ============================================================
-$sql = "
+$sql = '
     SELECT i.*,
            z.name AS zone_name,
            resp.full_name     AS responder_name,
@@ -114,7 +114,7 @@ $sql = "
            resp.zone_id       AS responder_zone_id,
            (SELECT COUNT(*) FROM incident_responses WHERE incident_id = i.id) AS response_count,
            (SELECT COUNT(*) FROM incident_assignments WHERE incident_id = i.id) AS assignment_count,
-           (SELECT GROUP_CONCAT(DISTINCT au.full_name SEPARATOR ', ')
+           (SELECT string_agg(DISTINCT au.full_name::text, \', \')
               FROM incident_assignments ia
               JOIN users au ON ia.ranger_id = au.id
              WHERE ia.incident_id = i.id) AS assigned_ranger_names
@@ -122,7 +122,7 @@ $sql = "
     LEFT JOIN zones z ON i.zone_id = z.id
     LEFT JOIN users resp ON i.acknowledged_by = resp.id
     WHERE i.reporter_id = ?
-";
+';
 $params = [$user['id']];
 
 if ($statusFilter !== '') {

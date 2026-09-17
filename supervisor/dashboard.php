@@ -132,7 +132,7 @@ $totalRangers     = safeCount($pdo, "SELECT COUNT(*) as count FROM users WHERE z
 $scoutsOnline     = safeCount($pdo, "SELECT COUNT(*) as count FROM users WHERE zone_id = ? AND role = 'scout' AND is_online = 1 AND is_active = 1", [$activeZoneId]);
 $totalScouts      = safeCount($pdo, "SELECT COUNT(*) as count FROM users WHERE zone_id = ? AND role = 'scout' AND is_active = 1", [$activeZoneId]);
 $manpowerRequests = safeCount($pdo, "SELECT COUNT(*) as count FROM messages WHERE message_type = 'manpower_request' AND is_read = 0 AND (zone_id = ? OR zone_id IS NULL)", [$activeZoneId]);
-$aiAnomalies24h   = safeCount($pdo, "SELECT COUNT(*) as count FROM ai_anomalies WHERE zone_id = ? AND detected_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)", [$activeZoneId]);
+$aiAnomalies24h   = safeCount($pdo, 'SELECT COUNT(*) as count FROM ai_anomalies WHERE zone_id = ? AND detected_at >= (NOW() - (24) * INTERVAL \'1 hour\')', [$activeZoneId]);
 
 $unreadCount      = getUnreadNotificationCount($user['id']);
 

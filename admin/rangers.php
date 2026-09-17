@@ -21,7 +21,7 @@ $rangers = $stmt->fetchAll();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'toggle_availability') {
     $rangerId = $_POST['ranger_id'];
     $status = isset($_POST['is_available']) ? 1 : 0;
-    $stmt = $pdo->prepare("INSERT INTO ranger_availability (ranger_id, is_available, last_status_update) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE is_available = ?, last_status_update = NOW()");
+    $stmt = $pdo->prepare('INSERT INTO ranger_availability (ranger_id, is_available, last_status_update) VALUES (?, ?, NOW())  ON CONFLICT (ranger_id) DO UPDATE SET  is_available = ?, last_status_update = NOW()');
     $stmt->execute([$rangerId, $status, $status]);
     logAudit($user['id'], 'toggle_ranger_availability', ['ranger_id' => $rangerId, 'status' => $status]);
     header('Location: rangers.php');

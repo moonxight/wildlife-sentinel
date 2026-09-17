@@ -79,17 +79,17 @@ $myLocation = $myTracking[0] ?? null;
 // ============================================================
 // MY ASSIGNED PATROL ROUTE (last 2h trail)
 // ============================================================
-$myRoute = safeFetchAll($pdo, "
+$myRoute = safeFetchAll($pdo, '
     SELECT lat, lng, heading, speed, timestamp
     FROM ranger_location_history
-    WHERE ranger_id = ? AND timestamp >= DATE_SUB(NOW(), INTERVAL 2 HOUR)
+    WHERE ranger_id = ? AND timestamp >= (NOW() - (2) * INTERVAL \'1 hour\')
     ORDER BY timestamp ASC
-", [$user['id']]);
+', [$user['id']]);
 
 // ============================================================
 // ACTIVE INCIDENTS IN MY ZONE
 // ============================================================
-$incidents = safeFetchAll($pdo, "
+$incidents = safeFetchAll($pdo, '
     SELECT i.id, i.category, i.severity, i.status, i.description,
            i.location_lat, i.location_lng, i.reported_at,
            u.full_name AS reporter_name, u.phone AS reporter_phone,
@@ -97,10 +97,10 @@ $incidents = safeFetchAll($pdo, "
     FROM incidents i
     LEFT JOIN users u ON i.reporter_id = u.id
     LEFT JOIN users r ON i.acknowledged_by = r.id
-    WHERE i.zone_id = ? AND i.status NOT IN ('resolved','closed')
-    ORDER BY FIELD(i.severity,'critical','high','medium','low'), i.reported_at DESC
+    WHERE i.zone_id = ? AND i.status NOT IN (\'resolved\',\'closed\')
+    ORDER BY CASE i.severity WHEN \'critical\' THEN 1 WHEN \'high\' THEN 2 WHEN \'medium\' THEN 3 WHEN \'low\' THEN 4 ELSE 0 END, i.reported_at DESC
     LIMIT 100
-", [$zoneId]);
+', [$zoneId]);
 
 // ============================================================
 // OTHER RANGERS IN MY ZONE

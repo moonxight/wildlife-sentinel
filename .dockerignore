@@ -5,6 +5,4 @@
 uploads/*
 !uploads/.gitkeep
 demo
-RUN_DEMO.bat
 DEMO_SETUP.md
-STOP_DEMO.bat

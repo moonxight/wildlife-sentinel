@@ -46,7 +46,7 @@ try {
                 $user['id']
             ]);
             
-            $zoneId = $pdo->lastInsertId();
+            $zoneId = $pdo->query('SELECT lastval()')->fetchColumn();
             logAudit($user['id'], 'create_zone', ['zone_name' => $data['name']]);
             
             echo json_encode([

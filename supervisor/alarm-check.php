@@ -41,12 +41,12 @@ foreach ($triggers as &$t) {
     $elapsed = time() - strtotime($t['triggered_at']);
     if ($t['siren_duration'] && $elapsed > (int)$t['siren_duration']) {
         try {
-            $pdo->prepare("
+            $pdo->prepare('
                 UPDATE alarm_triggers SET
                     stopped_at = NOW(),
-                    duration_seconds = TIMESTAMPDIFF(SECOND, triggered_at, NOW())
+                    duration_seconds = TRUNC(EXTRACT(EPOCH FROM ((NOW()) - (triggered_at))) / 1)
                 WHERE id = ?
-            ")->execute([$t['id']]);
+            ')->execute([$t['id']]);
             $t['stopped'] = true;
         } catch (PDOException $e) {}
     }

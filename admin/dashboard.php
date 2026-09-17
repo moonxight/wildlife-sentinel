@@ -80,9 +80,9 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'stats') {
         'unacknowledged'   => safeCount($pdo, "SELECT COUNT(*) as count FROM incidents WHERE status = 'reported'"),
         'activeAlarms'     => safeCount($pdo, "SELECT COUNT(*) as count FROM alarm_triggers WHERE stopped_at IS NULL"),
         'pendingAIAlerts'  => safeCount($pdo, "SELECT COUNT(*) as count FROM ai_alerts WHERE is_acknowledged = 0"),
-        'todayDetections'  => safeCount($pdo, "SELECT COUNT(*) as count FROM ai_detections WHERE DATE(detected_at) = CURDATE()"),
-        'todayThreats'     => safeCount($pdo, "SELECT COUNT(*) as count FROM ai_detections WHERE is_threat = 1 AND DATE(detected_at) = CURDATE()"),
-        'todaySMS'         => safeCount($pdo, "SELECT COUNT(*) as count FROM sms_logs WHERE status = 'sent' AND DATE(created_at) = CURDATE()"),
+        'todayDetections'  => safeCount($pdo, 'SELECT COUNT(*) as count FROM ai_detections WHERE DATE(detected_at) = CURRENT_DATE'),
+        'todayThreats'     => safeCount($pdo, 'SELECT COUNT(*) as count FROM ai_detections WHERE is_threat = 1 AND DATE(detected_at) = CURRENT_DATE'),
+        'todaySMS'         => safeCount($pdo, 'SELECT COUNT(*) as count FROM sms_logs WHERE status = \'sent\' AND DATE(created_at) = CURRENT_DATE'),
     ];
 
     echo json_encode($payload);
@@ -109,11 +109,11 @@ $registeredParks   = safeCount($pdo, "SELECT COUNT(*) as count FROM zones WHERE 
 // ============================================================
 $totalCameras      = safeCount($pdo, "SELECT COUNT(*) as count FROM cctv_cameras WHERE is_active = 1");
 $onlineCameras     = safeCount($pdo, "SELECT COUNT(*) as count FROM cctv_cameras WHERE is_active = 1 AND is_recording = 1");
-$todayDetections   = safeCount($pdo, "SELECT COUNT(*) as count FROM ai_detections WHERE DATE(detected_at) = CURDATE()");
-$todayThreats      = safeCount($pdo, "SELECT COUNT(*) as count FROM ai_detections WHERE is_threat = 1 AND DATE(detected_at) = CURDATE()");
+$todayDetections   = safeCount($pdo, 'SELECT COUNT(*) as count FROM ai_detections WHERE DATE(detected_at) = CURRENT_DATE');
+$todayThreats      = safeCount($pdo, 'SELECT COUNT(*) as count FROM ai_detections WHERE is_threat = 1 AND DATE(detected_at) = CURRENT_DATE');
 $pendingAIAlerts   = safeCount($pdo, "SELECT COUNT(*) as count FROM ai_alerts WHERE is_acknowledged = 0");
 $activeAlarms      = safeCount($pdo, "SELECT COUNT(*) as count FROM alarm_triggers WHERE stopped_at IS NULL");
-$todaySMS          = safeCount($pdo, "SELECT COUNT(*) as count FROM sms_logs WHERE status = 'sent' AND DATE(created_at) = CURDATE()");
+$todaySMS          = safeCount($pdo, 'SELECT COUNT(*) as count FROM sms_logs WHERE status = \'sent\' AND DATE(created_at) = CURRENT_DATE');
 
 // ============================================================
 // RECENT LISTS
@@ -154,14 +154,14 @@ $activeAlarmList = safeFetchAll($pdo, "
     LIMIT 3
 ");
 
-$aiAlerts = safeFetchAll($pdo, "
+$aiAlerts = safeFetchAll($pdo, '
     SELECT a.*, z.name AS zone_name
     FROM ai_alerts a
     LEFT JOIN zones z ON a.zone_id = z.id
     WHERE a.is_acknowledged = 0
-    ORDER BY FIELD(a.severity,'critical','high','medium','low'), a.created_at DESC
+    ORDER BY CASE a.severity WHEN \'critical\' THEN 1 WHEN \'high\' THEN 2 WHEN \'medium\' THEN 3 WHEN \'low\' THEN 4 ELSE 0 END, a.created_at DESC
     LIMIT 3
-");
+');
 
 // ============================================================
 // CHARTS

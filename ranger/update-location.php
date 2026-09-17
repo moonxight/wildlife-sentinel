@@ -34,18 +34,18 @@ if (function_exists('updateRangerLocation')) {
     try {
         $pdo = getDB();
 
-        $pdo->prepare("
+        $pdo->prepare('
             INSERT INTO ranger_live_tracking
                 (ranger_id, current_lat, current_lng, heading, speed, last_update, is_offline)
             VALUES (?, ?, ?, ?, ?, NOW(), 0)
-            ON DUPLICATE KEY UPDATE
-                current_lat = VALUES(current_lat),
-                current_lng = VALUES(current_lng),
-                heading     = VALUES(heading),
-                speed       = VALUES(speed),
+             ON CONFLICT (ranger_id) DO UPDATE SET 
+                current_lat = EXCLUDED.current_lat,
+                current_lng = EXCLUDED.current_lng,
+                heading     = EXCLUDED.heading,
+                speed       = EXCLUDED.speed,
                 last_update = NOW(),
                 is_offline  = 0
-        ")->execute([$user['id'], $lat, $lng, $heading, $speed]);
+        ')->execute([$user['id'], $lat, $lng, $heading, $speed]);
 
         $pdo->prepare("
             INSERT INTO ranger_location_history

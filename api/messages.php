@@ -39,7 +39,7 @@ try {
                 $isBroadcast
             ]);
             
-            $messageId = $pdo->lastInsertId();
+            $messageId = $pdo->query('SELECT lastval()')->fetchColumn();
             
             // Notify recipient
             if ($recipientId) {

@@ -9,14 +9,14 @@ if (!in_array($user['role'], ['zone_supervisor', 'admin'])) {
 $zoneId = $_GET['zone_id'] ?? $user['zone_id'];
 if (!$zoneId) jsonResponse(['error' => 'Zone ID required'], 400);
 
-$stmt = $pdo->prepare("
+$stmt = $pdo->prepare('
     SELECT a.*, u.full_name AS subject_name, u.role AS subject_role
     FROM ai_anomalies a
     LEFT JOIN users u ON (a.ranger_id = u.id OR a.scout_id = u.id)
-    WHERE a.zone_id = ? AND a.detected_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+    WHERE a.zone_id = ? AND a.detected_at >= (NOW() - (24) * INTERVAL \'1 hour\')
     ORDER BY a.detected_at DESC
     LIMIT 50
-");
+');
 $stmt->execute([$zoneId]);
 $anomalies = $stmt->fetchAll();
 

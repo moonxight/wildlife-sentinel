@@ -85,17 +85,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 // ============================================================
 // FETCH RANGERS (with live status)
 // ============================================================
-$rangers = safeFetchAll($pdo, "
+$rangers = safeFetchAll($pdo, '
     SELECT u.id, u.full_name, u.badge_number, u.is_on_duty, u.is_online,
            rlt.current_lat, rlt.current_lng, rlt.last_update AS location_updated,
            ra.is_available,
-           (SELECT COUNT(*) FROM ranger_location_history rlh WHERE rlh.ranger_id = u.id AND rlh.timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)) AS gps_points_24h
+           (SELECT COUNT(*) FROM ranger_location_history rlh WHERE rlh.ranger_id = u.id AND rlh.timestamp >= (NOW() - (24) * INTERVAL \'1 hour\')) AS gps_points_24h
     FROM users u
     LEFT JOIN ranger_live_tracking rlt ON u.id = rlt.ranger_id
     LEFT JOIN ranger_availability ra ON u.id = ra.ranger_id
-    WHERE u.zone_id = ? AND u.role = 'ranger' AND u.is_active = 1
+    WHERE u.zone_id = ? AND u.role = \'ranger\' AND u.is_active = 1
     ORDER BY u.is_on_duty DESC, u.full_name
-", [$activeZoneId]);
+', [$activeZoneId]);
 
 // ============================================================
 // FETCH PATROL ROUTES (if table exists)

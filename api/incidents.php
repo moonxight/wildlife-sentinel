@@ -548,7 +548,7 @@ try {
             $params[] = $limit;
 
             $sql = "
-                SELECT i.*,
+                SELECT * FROM (SELECT i.*,
                        u.full_name AS reporter_name,
                        z.name AS zone_name,
                        (6371 * acos(
@@ -559,11 +559,11 @@ try {
                 FROM incidents i
                 JOIN users u ON i.reporter_id = u.id
                 LEFT JOIN zones z ON i.zone_id = z.id
-                WHERE " . implode(' AND ', $where) . "
-                HAVING distance < ?
-                ORDER BY distance ASC, FIELD(i.severity,'critical','high','medium','low')
+                WHERE " . implode(' AND ', $where) . '
+                ) AS nearby WHERE distance < ?
+                ORDER BY distance ASC, CASE severity WHEN \'critical\' THEN 1 WHEN \'high\' THEN 2 WHEN \'medium\' THEN 3 WHEN \'low\' THEN 4 ELSE 0 END
                 LIMIT ?
-            ";
+            ';
 
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);

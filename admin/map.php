@@ -95,7 +95,7 @@ if (!function_exists('circleGeoJSON')) {
 // ============================================================
 $zoneCols = [];
 try {
-    $colStmt = $pdo->query("SHOW COLUMNS FROM zones");
+    $colStmt = $pdo->query('SELECT column_name AS "Field", data_type AS "Type", is_nullable AS "Null", column_default AS "Default" FROM information_schema.columns WHERE table_schema=current_schema() AND table_name=\'zones\' ORDER BY ordinal_position');
     while ($c = $colStmt->fetch(PDO::FETCH_ASSOC)) {
         $zoneCols[$c['Field']] = true;
     }
@@ -135,7 +135,7 @@ $parks = safeFetchAll($pdo, "
     SELECT " . implode(', ', $selectParts) . "
     FROM zones
     WHERE is_active = 1
-    ORDER BY " . ($hasParkType ? "FIELD(park_type,'national_park','gma','other'), " : "") . "name
+    ORDER BY " . ($hasParkType ? 'CASE park_type WHEN \'national_park\' THEN 1 WHEN \'gma\' THEN 2 WHEN \'other\' THEN 3 ELSE 0 END, ' : "") . "name
 ");
 
 $parks = array_values(array_filter($parks, function ($z) {
@@ -197,7 +197,7 @@ $zoneDebug = [
 // ============================================================
 // INCIDENTS / RANGERS / SCOUTS / AI
 // ============================================================
-$incidents = safeFetchAll($pdo, "
+$incidents = safeFetchAll($pdo, '
     SELECT i.id, i.category, i.severity, i.status, i.description,
            i.location_lat, i.location_lng, i.reported_at,
            u.full_name AS reporter_name,
@@ -205,10 +205,10 @@ $incidents = safeFetchAll($pdo, "
     FROM incidents i
     LEFT JOIN users u ON i.reporter_id = u.id
     LEFT JOIN zones z ON i.zone_id = z.id
-    WHERE i.status NOT IN ('closed', 'resolved')
-    ORDER BY FIELD(i.severity,'critical','high','medium','low'), i.reported_at DESC
+    WHERE i.status NOT IN (\'closed\', \'resolved\')
+    ORDER BY CASE i.severity WHEN \'critical\' THEN 1 WHEN \'high\' THEN 2 WHEN \'medium\' THEN 3 WHEN \'low\' THEN 4 ELSE 0 END, i.reported_at DESC
     LIMIT 200
-");
+');
 
 $rangers = safeFetchAll($pdo, "
     SELECT u.id, u.full_name, u.email, u.phone, u.badge_number, u.is_on_duty,
@@ -235,17 +235,17 @@ $scouts = safeFetchAll($pdo, "
     ORDER BY u.full_name
 ");
 
-$aiAnomalies = safeFetchAll($pdo, "
+$aiAnomalies = safeFetchAll($pdo, '
     SELECT a.id, a.type, a.severity, a.description, a.confidence,
            a.location_lat, a.location_lng, a.radius_meters,
            a.detected_at,
            u.full_name AS subject_name, u.role AS subject_role
     FROM ai_anomalies a
     LEFT JOIN users u ON (a.ranger_id = u.id OR a.scout_id = u.id)
-    WHERE a.detected_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+    WHERE a.detected_at >= (NOW() - (24) * INTERVAL \'1 hour\')
     ORDER BY a.detected_at DESC
     LIMIT 50
-");
+');
 
 // ============================================================
 // STATS

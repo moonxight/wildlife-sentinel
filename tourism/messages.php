@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             ");
             
             if ($stmt->execute([$user['id'], $recipientId, $incidentId, $subject, $content])) {
-                $messageId = $pdo->lastInsertId();
+                $messageId = $pdo->query('SELECT lastval()')->fetchColumn();
                 
                 if ($recipientId) {
                     createNotification($recipientId, 'new_message', '💬 New Message from Tourism',
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             ");
             
             if ($stmt->execute([$user['id'], $recipientId, $content, $parentMessageId])) {
-                $messageId = $pdo->lastInsertId();
+                $messageId = $pdo->query('SELECT lastval()')->fetchColumn();
                 createNotification($recipientId, 'new_message', '💬 Reply Received',
                     "Reply from {$user['full_name']}: " . substr($content, 0, 50), null, $messageId);
                 $success = 'Reply sent successfully';

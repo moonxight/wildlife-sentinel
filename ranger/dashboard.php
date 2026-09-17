@@ -62,27 +62,27 @@ $myLocation = $myTracking[0] ?? null;
 // ============================================================
 // MY ASSIGNED INCIDENTS
 // ============================================================
-$myIncidents = safeFetchAll($pdo, "
+$myIncidents = safeFetchAll($pdo, '
     SELECT i.*, u.full_name AS reporter_name, u.phone AS reporter_phone
     FROM incidents i
     LEFT JOIN users u ON i.reporter_id = u.id
     WHERE i.acknowledged_by = ?
-      AND i.status IN ('acknowledged','in_progress')
-    ORDER BY FIELD(i.severity,'critical','high','medium','low'), i.reported_at DESC
-", [$user['id']]);
+      AND i.status IN (\'acknowledged\',\'in_progress\')
+    ORDER BY CASE i.severity WHEN \'critical\' THEN 1 WHEN \'high\' THEN 2 WHEN \'medium\' THEN 3 WHEN \'low\' THEN 4 ELSE 0 END, i.reported_at DESC
+', [$user['id']]);
 
 // ============================================================
 // ZONE INCIDENTS (unassigned / open)
 // ============================================================
-$zoneIncidents = safeFetchAll($pdo, "
+$zoneIncidents = safeFetchAll($pdo, '
     SELECT i.*, u.full_name AS reporter_name
     FROM incidents i
     LEFT JOIN users u ON i.reporter_id = u.id
     WHERE i.zone_id = ?
-      AND i.status = 'reported'
-    ORDER BY FIELD(i.severity,'critical','high','medium','low'), i.reported_at DESC
+      AND i.status = \'reported\'
+    ORDER BY CASE i.severity WHEN \'critical\' THEN 1 WHEN \'high\' THEN 2 WHEN \'medium\' THEN 3 WHEN \'low\' THEN 4 ELSE 0 END, i.reported_at DESC
     LIMIT 10
-", [$zoneId]);
+', [$zoneId]);
 
 // ============================================================
 // STATS

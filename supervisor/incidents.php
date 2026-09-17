@@ -148,15 +148,15 @@ if ($zoneId > 0) {
 $aiAlerts = [];
 if ($setAiEnabled && $zoneId > 0) {
     try {
-        $stmt = $pdo->prepare("
+        $stmt = $pdo->prepare('
             SELECT a.*, c.camera_name
             FROM ai_alerts a
             LEFT JOIN ai_detections d ON a.detection_id = d.id
             LEFT JOIN cctv_cameras c ON d.camera_id = c.id
             WHERE a.zone_id = ? AND a.is_acknowledged = 0
-            ORDER BY FIELD(a.severity,'critical','high','medium','low'), a.created_at DESC
+            ORDER BY CASE a.severity WHEN \'critical\' THEN 1 WHEN \'high\' THEN 2 WHEN \'medium\' THEN 3 WHEN \'low\' THEN 4 ELSE 0 END, a.created_at DESC
             LIMIT 10
-        ");
+        ');
         $stmt->execute([$zoneId]);
         $aiAlerts = $stmt->fetchAll() ?: [];
     } catch (PDOException $e) {

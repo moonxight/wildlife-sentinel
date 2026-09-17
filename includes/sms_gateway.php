@@ -726,12 +726,12 @@ class SMSGateway
             ws_ensure_functions_loaded();
             if (!function_exists('getDB')) return true;
             $pdo = getDB();
-            $stmt = $pdo->prepare("
+            $stmt = $pdo->prepare('
                 SELECT COUNT(*) AS c
                 FROM sms_logs
                 WHERE phone = ?
-                  AND created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
-            ");
+                  AND created_at >= (NOW() - (1) * INTERVAL \'1 day\')
+            ');
             $stmt->execute([$normalizedPhone]);
             $count = (int)($stmt->fetch()['c'] ?? 0);
             return $count < 20;

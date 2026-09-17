@@ -157,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         $zoneId, $cameraName, $cameraCode ?: null, $streamUrl ?: null,
                         $lat, $lng, $cameraType, $resolution,
                     ]);
-                    $newId = (int)$pdo->lastInsertId();
+                    $newId = (int)$pdo->query('SELECT lastval()')->fetchColumn();
                     logAudit($user['id'], 'create_camera', ['camera_id' => $newId, 'zone_id' => $zoneId]);
                     $message = "✅ Camera '{$cameraName}' added successfully.";
                 } catch (PDOException $e) {
@@ -343,7 +343,7 @@ if ($search !== '') {
 $cameras = safeFetchAll($pdo, "
     SELECT c.*, z.name AS zone_name, z.park_type,
            (SELECT COUNT(*) FROM ai_detections d
-             WHERE d.camera_id = c.id AND DATE(d.detected_at) = CURDATE()) AS detections_today
+             WHERE d.camera_id = c.id AND DATE(d.detected_at) = CURRENT_DATE) AS detections_today
     FROM cctv_cameras c
     JOIN zones z ON c.zone_id = z.id
     $where

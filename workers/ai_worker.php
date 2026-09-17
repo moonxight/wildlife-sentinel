@@ -24,19 +24,19 @@ $pdo = getDB();
 // ------------------------------------------------------------
 if (!$dryRun) {
     try {
-        $pdo->exec("
+        $pdo->exec('
             UPDATE ai_thresholds t
-            SET t.min_confidence = LEAST(0.95, GREATEST(0.50, t.min_confidence + (
+            SET min_confidence = LEAST(0.95, GREATEST(0.50, t.min_confidence + (
                 SELECT CASE
-                    WHEN SUM(f.verdict = 'false_positive') > SUM(f.verdict = 'true_positive') THEN 0.05
-                    WHEN SUM(f.verdict = 'true_positive') > SUM(f.verdict = 'false_positive') THEN -0.03
+                    WHEN SUM((f.verdict = \'false_positive\')::integer) > SUM((f.verdict = \'true_positive\')::integer) THEN 0.05
+                    WHEN SUM((f.verdict = \'true_positive\')::integer) > SUM((f.verdict = \'false_positive\')::integer) THEN -0.03
                     ELSE 0
                 END
                 FROM ai_feedback f
-                WHERE f.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+                WHERE f.created_at >= (NOW() - (7) * INTERVAL \'1 day\')
             )))
             WHERE t.zone_id IS NOT NULL
-        ");
+        ');
     } catch (PDOException $e) {
         error_log('[WS-AI-WORKER] recalibration: ' . $e->getMessage());
     }

@@ -112,28 +112,28 @@ class AlarmControl
             ['alarm_systems',   'api_endpoint',              "VARCHAR(500) NULL"],
             ['alarm_systems',   'api_key',                   "VARCHAR(255) NULL"],
             ['alarm_systems',   'trigger_duration',          "INT DEFAULT 60"],
-            ['alarm_systems',   'auto_trigger',              "TINYINT(1) DEFAULT 1"],
+            ['alarm_systems',   'auto_trigger',              "SMALLINT DEFAULT 1"],
             ['alarm_systems',   'max_acknowledge_time_seconds', "INT DEFAULT 120"],
             ['alarm_systems',   'sound_url',                 "VARCHAR(500) NULL"],
             ['alarm_systems',   'sound_volume',              "INT DEFAULT 80"],
             ['alarm_systems',   'siren_duration',            "INT DEFAULT 180"],
             ['alarm_systems',   'trigger_delay_seconds',     "INT DEFAULT 120"],
-            ['alarm_systems',   'auto_sound_on_incident',    "TINYINT(1) DEFAULT 1"],
+            ['alarm_systems',   'auto_sound_on_incident',    "SMALLINT DEFAULT 1"],
 
             ['alarm_triggers',  'alert_id',                  "INT NULL"],
             ['alarm_triggers',  'incident_id',               "INT NULL"],
             ['alarm_triggers',  'triggered_by',              "VARCHAR(40) DEFAULT 'ai_detection'"],
             ['alarm_triggers',  'trigger_reason',            "VARCHAR(255) NULL"],
-            ['alarm_triggers',  'triggered_at',              "DATETIME DEFAULT CURRENT_TIMESTAMP"],
-            ['alarm_triggers',  'stopped_at',                "DATETIME NULL"],
+            ['alarm_triggers',  'triggered_at',              "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"],
+            ['alarm_triggers',  'stopped_at',                "TIMESTAMP NULL"],
             ['alarm_triggers',  'duration_seconds',          "INT NULL"],
-            ['alarm_triggers',  'was_acknowledged',          "TINYINT(1) DEFAULT 0"],
+            ['alarm_triggers',  'was_acknowledged',          "SMALLINT DEFAULT 0"],
             ['alarm_triggers',  'acknowledged_by',           "INT NULL"],
-            ['alarm_triggers',  'acknowledged_at',           "DATETIME NULL"],
+            ['alarm_triggers',  'acknowledged_at',           "TIMESTAMP NULL"],
         ];
 
         try {
-            $cursor = $this->pdo->query("SELECT DATABASE() AS db");
+            $cursor = $this->pdo->query('SELECT current_schema() AS db');
             $db = $cursor->fetch()['db'] ?? null;
             if (!$db) return;
 
@@ -147,7 +147,7 @@ class AlarmControl
                 $exists = (int)($stmt->fetch()['c'] ?? 0);
                 if (!$exists) {
                     try {
-                        $this->pdo->exec("ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$ddl}");
+                        $this->pdo->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$ddl}");
                         alarm_log('info', "Schema: added {$table}.{$column}");
                     } catch (PDOException $e) {
                         alarm_log('warning', "Schema add skipped", [
@@ -211,12 +211,12 @@ class AlarmControl
         $delay = (int)($settings['alarm_delay_seconds'] ?? 120);
 
         try {
-            $stmt = $this->pdo->prepare("
+            $stmt = $this->pdo->prepare('
                 INSERT INTO alarm_triggers (
                     zone_id, incident_id, triggered_by, trigger_reason,
                     triggered_at, was_acknowledged
-                ) VALUES (?, ?, 'unacknowledged_incident', ?, DATE_ADD(NOW(), INTERVAL ? SECOND), 0)
-            ");
+                ) VALUES (?, ?, \'unacknowledged_incident\', ?, (NOW() + (?) * INTERVAL \'1 second\'), 0)
+            ');
             $stmt->execute([
                 $zoneId,
                 $incidentId,
@@ -254,21 +254,21 @@ class AlarmControl
         $triggered = 0;
 
         try {
-            $stmt = $this->pdo->prepare("
+            $stmt = $this->pdo->prepare('
                 SELECT i.id AS incident_id, i.zone_id
                 FROM incidents i
                 LEFT JOIN zone_notification_settings zns ON i.zone_id = zns.zone_id
-                WHERE i.status = 'reported'
-                  AND i.reported_at < DATE_SUB(NOW(), INTERVAL COALESCE(zns.alarm_delay_seconds, 120) SECOND)
+                WHERE i.status = \'reported\'
+                  AND i.reported_at < (NOW() - (COALESCE(zns.alarm_delay_seconds, 120)) * INTERVAL \'1 second\')
                   AND COALESCE(zns.alarm_enabled, 1) = 1
                   AND NOT EXISTS (
                       SELECT 1 FROM alarm_triggers at
                       WHERE at.incident_id = i.id
-                        AND at.triggered_by = 'unacknowledged_incident'
+                        AND at.triggered_by = \'unacknowledged_incident\'
                         AND at.triggered_at <= NOW()
                   )
                 LIMIT 100
-            ");
+            ');
             $stmt->execute();
             $pending = $stmt->fetchAll() ?: [];
         } catch (PDOException $e) {
@@ -382,12 +382,12 @@ class AlarmControl
     private function recentTriggerExists(int $incidentId, int $alarmId, int $cooldown): bool
     {
         try {
-            $stmt = $this->pdo->prepare("
+            $stmt = $this->pdo->prepare('
                 SELECT COUNT(*) AS c
                 FROM alarm_triggers
                 WHERE incident_id = ? AND alarm_id = ?
-                  AND triggered_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
-            ");
+                  AND triggered_at >= (NOW() - (?) * INTERVAL \'1 second\')
+            ');
             $stmt->execute([$incidentId, $alarmId, $cooldown]);
             return ((int)($stmt->fetch()['c'] ?? 0)) > 0;
         } catch (PDOException $e) {
@@ -509,15 +509,15 @@ class AlarmControl
             }
 
             try {
-                $this->pdo->prepare("
+                $this->pdo->prepare('
                     UPDATE alarm_triggers
                     SET stopped_at = NOW(),
-                        duration_seconds = TIMESTAMPDIFF(SECOND, triggered_at, NOW()),
+                        duration_seconds = TRUNC(EXTRACT(EPOCH FROM ((NOW()) - (triggered_at))) / 1),
                         was_acknowledged = 1,
                         acknowledged_by = ?,
                         acknowledged_at = NOW()
                     WHERE id = ?
-                ")->execute([$acknowledgedBy, $t['trigger_id']]);
+                ')->execute([$acknowledgedBy, $t['trigger_id']]);
                 $stopped++;
             } catch (PDOException $e) {
                 alarm_log('warning', 'stopAlarm update failed', ['trigger_id' => $t['trigger_id'], 'err' => $e->getMessage()]);

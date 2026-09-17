@@ -65,13 +65,13 @@ function runAutoTriggers(PDO $pdo, bool $notifyAlarm): void {
     // 1. Find unacknowledged incidents older than the smallest possible delay
     $incidents = [];
     try {
-        $stmt = $pdo->query("
+        $stmt = $pdo->query('
             SELECT i.id, i.zone_id, i.severity, i.category, i.reported_at
             FROM incidents i
-            WHERE i.status = 'reported'
-              AND TIMESTAMPDIFF(SECOND, i.reported_at, NOW()) >= 30
+            WHERE i.status = \'reported\'
+              AND TRUNC(EXTRACT(EPOCH FROM ((NOW()) - (i.reported_at))) / 1) >= 30
               AND i.zone_id IS NOT NULL
-        ");
+        ');
         $incidents = $stmt->fetchAll();
     } catch (PDOException $e) {
         error_log('[WS-ALARM-AUTO] incidents query failed: ' . $e->getMessage());
@@ -123,7 +123,7 @@ function runAutoTriggers(PDO $pdo, bool $notifyAlarm): void {
                 if ($stmt->fetch()) continue;
             } catch (PDOException $e) {
                 // Column may be missing — add it
-                try { $pdo->exec("ALTER TABLE alarm_triggers ADD COLUMN incident_id INT(11) NULL"); } catch (PDOException $e2) {}
+                try { $pdo->exec('ALTER TABLE alarm_triggers ADD COLUMN incident_id INTEGER NULL'); } catch (PDOException $e2) {}
             }
 
             // Fire the alarm
@@ -203,16 +203,13 @@ function runAutoTriggers(PDO $pdo, bool $notifyAlarm): void {
 
 function runAutoStop(PDO $pdo): void {
     try {
-        $stmt = $pdo->exec("
-            UPDATE alarm_triggers at
-            JOIN alarm_systems a ON at.alarm_id = a.id
-            SET at.stopped_at = NOW(),
-                at.duration_seconds = TIMESTAMPDIFF(SECOND, at.triggered_at, NOW()),
-                at.was_acknowledged = 1
-            WHERE at.stopped_at IS NULL
+        $stmt = $pdo->exec('
+            UPDATE alarm_triggers at SET stopped_at = NOW(),
+                duration_seconds = TRUNC(EXTRACT(EPOCH FROM ((NOW()) - (at.triggered_at))) / 1),
+                was_acknowledged = 1 FROM alarm_systems a WHERE at.alarm_id=a.id AND at.stopped_at IS NULL
               AND a.siren_duration > 0
-              AND TIMESTAMPDIFF(SECOND, at.triggered_at, NOW()) > a.siren_duration
-        ");
+              AND TRUNC(EXTRACT(EPOCH FROM ((NOW()) - (at.triggered_at))) / 1) > a.siren_duration
+        ');
         echo "Auto-stopped expired alarms.\n";
     } catch (PDOException $e) {
         error_log('[WS-ALARM-AUTO] auto-stop failed: ' . $e->getMessage());
