@@ -4,8 +4,7 @@
 // Wildlife Sentinel — Database connection & core helpers
 // ------------------------------------------------------------
 // Default: XAMPP / MariaDB on localhost.
-// Also supports hosted environments (Render, Railway, Fly)
-// via DB_HOST env vars and optional TLS.
+// Hosted PostgreSQL is selected by DATABASE_URL (Render/Neon).
 //
 // This file ONLY contains:
 //   1. DB credentials
@@ -14,7 +13,7 @@
 //   4. Auto-includes includes/functions.php
 //
 // Environment variables (optional, for hosted deployments):
-//   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_TLS
+//   DATABASE_URL, DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_TLS
 //   WS_URL, AI_SERVICE_URL
 // ------------------------------------------------------------
 // TLS:
@@ -25,8 +24,10 @@
 // ------------------------------------------------------------
 // ENVIRONMENT DETECTION
 // ------------------------------------------------------------
+$databaseUrl = getenv('DATABASE_URL');
+$usePostgres = is_string($databaseUrl) && trim($databaseUrl) !== '';
 $envHost = getenv('DB_HOST');
-$isHosted = (is_string($envHost) && $envHost !== '' && $envHost !== 'localhost' && $envHost !== '127.0.0.1');
+$isHosted = !$usePostgres && (is_string($envHost) && $envHost !== '' && $envHost !== 'localhost' && $envHost !== '127.0.0.1');
 
 // ------------------------------------------------------------
 // CREDENTIALS
@@ -54,6 +55,13 @@ if ($isHosted) {
     if (!defined('DB_PASS'))    define('DB_PASS',    '');       // XAMPP default
     if (!defined('DB_CHARSET')) define('DB_CHARSET', 'utf8mb4');
     if (!defined('DB_USE_TLS')) define('DB_USE_TLS', false);
+}
+
+if (!defined('DB_DRIVER')) {
+    define('DB_DRIVER', $usePostgres ? 'pgsql' : (getenv('DB_DRIVER') ?: 'mysql'));
+}
+if (!defined('WS_PGSQL')) {
+    define('WS_PGSQL', DB_DRIVER === 'pgsql');
 }
 
 // ------------------------------------------------------------
@@ -93,10 +101,31 @@ if (!function_exists('getDB')) {
         static $pdo = null;
         if ($pdo instanceof PDO) return $pdo;
 
-        $dsn = 'mysql:host=' . DB_HOST
-             . ';port='     . DB_PORT
-             . ';dbname='   . DB_NAME
-             . ';charset='  . DB_CHARSET;
+        $url = getenv('DATABASE_URL');
+        if (WS_PGSQL && is_string($url) && trim($url) !== '') {
+            $parts = parse_url($url);
+            if ($parts === false || empty($parts['host']) || empty($parts['path'])) {
+                throw new RuntimeException('DATABASE_URL is not a valid PostgreSQL URL.');
+            }
+            $host = $parts['host'];
+            $port = isset($parts['port']) ? (int)$parts['port'] : 5432;
+            $name = ltrim($parts['path'], '/');
+            $user = isset($parts['user']) ? rawurldecode($parts['user']) : '';
+            $pass = isset($parts['pass']) ? rawurldecode($parts['pass']) : '';
+            parse_str($parts['query'] ?? '', $query);
+            $sslmode = (string)($query['sslmode'] ?? 'require');
+            if (!in_array($sslmode, ['require', 'verify-ca', 'verify-full'], true)) {
+                $sslmode = 'require';
+            }
+            $dsn = 'pgsql:host=' . $host . ';port=' . $port . ';dbname=' . $name . ';sslmode=' . $sslmode;
+        } else {
+            $user = DB_USER;
+            $pass = DB_PASS;
+            $dsn = 'mysql:host=' . DB_HOST
+                 . ';port='     . DB_PORT
+                 . ';dbname='   . DB_NAME
+                 . ';charset='  . DB_CHARSET;
+        }
 
         $options = [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -107,12 +136,12 @@ if (!function_exists('getDB')) {
 
         // Some builds of MariaDB on Windows reject MYSQL_ATTR_INIT_COMMAND.
         // Only add it if the constant exists.
-        if (defined('PDO::MYSQL_ATTR_INIT_COMMAND')) {
+        if (!WS_PGSQL && defined('PDO::MYSQL_ATTR_INIT_COMMAND')) {
             $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES " . DB_CHARSET;
         }
 
         // ---------- TLS (only for hosted / TiDB) ----------
-        if (DB_USE_TLS) {
+        if (!WS_PGSQL && DB_USE_TLS) {
             $caPath = __DIR__ . '/ca.pem';
             if (is_file($caPath)) {
                 if (defined('PDO::MYSQL_ATTR_SSL_CA')) {
@@ -132,9 +161,9 @@ if (!function_exists('getDB')) {
         }
 
         try {
-            $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+            $pdo = new PDO($dsn, $user, $pass, $options);
         } catch (PDOException $e) {
-            error_log('[WS-DB] Connection failed: ' . $e->getMessage());
+            error_log('[WS-DB] Database connection failed (' . DB_DRIVER . ').');
 
             // If headers are already sent, don't try to emit JSON.
             if (!headers_sent()) {
@@ -149,6 +178,12 @@ if (!function_exists('getDB')) {
         }
 
         return $pdo;
+    }
+}
+
+if (!function_exists('ws_is_postgres')) {
+    function ws_is_postgres(): bool {
+        return defined('WS_PGSQL') && WS_PGSQL;
     }
 }
 
