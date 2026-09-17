@@ -58,7 +58,7 @@ if ($isHosted) {
 }
 
 if (!defined('DB_DRIVER')) {
-    define('DB_DRIVER', $usePostgres ? 'pgsql' : (getenv('DB_DRIVER') ?: 'mysql'));
+    define('DB_DRIVER', $usePostgres ? 'pgsql' : 'mysql');
 }
 if (!defined('WS_PGSQL')) {
     define('WS_PGSQL', DB_DRIVER === 'pgsql');
@@ -101,69 +101,88 @@ if (!function_exists('getDB')) {
         static $pdo = null;
         if ($pdo instanceof PDO) return $pdo;
 
-        $url = getenv('DATABASE_URL');
-        if (WS_PGSQL && is_string($url) && trim($url) !== '') {
-            $parts = parse_url($url);
-            if ($parts === false || empty($parts['host']) || empty($parts['path'])) {
-                throw new RuntimeException('DATABASE_URL is not a valid PostgreSQL URL.');
-            }
-            $host = $parts['host'];
-            $port = isset($parts['port']) ? (int)$parts['port'] : 5432;
-            $name = ltrim($parts['path'], '/');
-            $user = isset($parts['user']) ? rawurldecode($parts['user']) : '';
-            $pass = isset($parts['pass']) ? rawurldecode($parts['pass']) : '';
-            parse_str($parts['query'] ?? '', $query);
-            $sslmode = (string)($query['sslmode'] ?? 'require');
-            if (!in_array($sslmode, ['require', 'verify-ca', 'verify-full'], true)) {
-                $sslmode = 'require';
-            }
-            $dsn = 'pgsql:host=' . $host . ';port=' . $port . ';dbname=' . $name . ';sslmode=' . $sslmode;
-        } else {
-            $user = DB_USER;
-            $pass = DB_PASS;
-            $dsn = 'mysql:host=' . DB_HOST
-                 . ';port='     . DB_PORT
-                 . ';dbname='   . DB_NAME
-                 . ';charset='  . DB_CHARSET;
-        }
-
-        $options = [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => false,
-            PDO::ATTR_TIMEOUT            => 15,
-        ];
-
-        // Some builds of MariaDB on Windows reject MYSQL_ATTR_INIT_COMMAND.
-        // Only add it if the constant exists.
-        if (!WS_PGSQL && defined('PDO::MYSQL_ATTR_INIT_COMMAND')) {
-            $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES " . DB_CHARSET;
-        }
-
-        // ---------- TLS (only for hosted / TiDB) ----------
-        if (!WS_PGSQL && DB_USE_TLS) {
-            $caPath = __DIR__ . '/ca.pem';
-            if (is_file($caPath)) {
-                if (defined('PDO::MYSQL_ATTR_SSL_CA')) {
-                    $options[PDO::MYSQL_ATTR_SSL_CA] = $caPath;
-                }
-                if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
-                    $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
-                }
-            } else {
-                // TLS requested but CA missing — disable CA verify so connection
-                // still works. Log a warning so admins know to add ca.pem.
-                error_log('[WS-DB] TLS enabled but config/ca.pem is missing');
-                if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
-                    $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
-                }
-            }
-        }
-
         try {
-            $pdo = new PDO($dsn, $user, $pass, $options);
-        } catch (PDOException $e) {
-            error_log('[WS-DB] Database connection failed (' . DB_DRIVER . ').');
+            $url = getenv('DATABASE_URL');
+            if (WS_PGSQL && is_string($url) && trim($url) !== '') {
+                $parts = parse_url(trim($url));
+                if ($parts === false || !in_array($parts['scheme'] ?? '', ['postgres', 'postgresql'], true)
+                    || empty($parts['host']) || empty($parts['path']) || empty($parts['user'])) {
+                    throw new RuntimeException('DATABASE_URL is not a valid PostgreSQL URL.');
+                }
+                $host = $parts['host'];
+                $port = isset($parts['port']) ? (int)$parts['port'] : 5432;
+                $name = rawurldecode(ltrim($parts['path'], '/'));
+                $user = isset($parts['user']) ? rawurldecode($parts['user']) : '';
+                $pass = isset($parts['pass']) ? rawurldecode($parts['pass']) : '';
+                parse_str($parts['query'] ?? '', $query);
+                $sslmode = (string)($query['sslmode'] ?? 'require');
+                $localPostgres = in_array($host, ['127.0.0.1', 'localhost', '::1'], true);
+                if (!in_array($sslmode, ['require', 'verify-ca', 'verify-full'], true) && !($localPostgres && $sslmode === 'disable')) {
+                    throw new RuntimeException('Hosted PostgreSQL requires TLS.');
+                }
+                foreach ([$host, $name] as $value) {
+                    if ($value === '' || strpbrk($value, ";\r\n\0") !== false) {
+                        throw new RuntimeException('Invalid PostgreSQL connection setting.');
+                    }
+                }
+                // PDO does not expose channel_binding in its DSN; libpq reads this setting.
+                $channelBinding = $query['channel_binding'] ?? 'prefer';
+                if (!in_array($channelBinding, ['disable', 'prefer', 'require'], true)) {
+                    throw new RuntimeException('Invalid PostgreSQL channel binding setting.');
+                }
+                putenv('PGCHANNELBINDING=' . $channelBinding);
+                $dsn = 'pgsql:host=' . $host . ';port=' . $port . ';dbname=' . $name . ';sslmode=' . $sslmode . ';connect_timeout=15';
+            } else {
+                $user = DB_USER;
+                $pass = DB_PASS;
+                $dsn = 'mysql:host=' . DB_HOST
+                     . ';port='     . DB_PORT
+                     . ';dbname='   . DB_NAME
+                     . ';charset='  . DB_CHARSET;
+            }
+
+            $options = [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+                PDO::ATTR_TIMEOUT            => 15,
+            ];
+
+            // Some builds of MariaDB on Windows reject MYSQL_ATTR_INIT_COMMAND.
+            // Only add it if the constant exists.
+            if (!WS_PGSQL && defined('PDO::MYSQL_ATTR_INIT_COMMAND')) {
+                $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES " . DB_CHARSET;
+            }
+
+            // ---------- TLS (only for hosted / TiDB) ----------
+            if (!WS_PGSQL && DB_USE_TLS) {
+                $caPath = __DIR__ . '/ca.pem';
+                if (is_file($caPath)) {
+                    if (defined('PDO::MYSQL_ATTR_SSL_CA')) {
+                        $options[PDO::MYSQL_ATTR_SSL_CA] = $caPath;
+                    }
+                    if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+                        $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
+                    }
+                } else {
+                    // TLS requested but CA missing — disable CA verify so connection
+                    // still works. Log a warning so admins know to add ca.pem.
+                    error_log('[WS-DB] TLS enabled but config/ca.pem is missing');
+                    if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+                        $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+                    }
+                }
+            }
+
+            if (WS_PGSQL) {
+                require_once __DIR__ . '/PostgresPDO.php';
+                $pdo = new WildlifePostgresPDO($dsn, $user, $pass, $options);
+            } else {
+                $pdo = new PDO($dsn, $user, $pass, $options);
+            }
+        } catch (Throwable $e) {
+            // Do not log URLs, passwords, or driver messages that may include credentials.
+            error_log('[WS-DB] Database connection failed (' . DB_DRIVER . ', code ' . $e->getCode() . ').');
 
             // If headers are already sent, don't try to emit JSON.
             if (!headers_sent()) {
@@ -174,7 +193,7 @@ if (!function_exists('getDB')) {
                 'success' => false,
                 'error'   => 'Database connection failed. Please try again later.',
             ]);
-            exit();
+            exit(PHP_SAPI === 'cli' ? 1 : 0);
         }
 
         return $pdo;

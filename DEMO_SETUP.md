@@ -28,6 +28,10 @@ The original wildlife_sentinel.sql contains DROP statements. Do not manually imp
 
 ## Render
 
+**For Neon/PostgreSQL, follow NEON_SETUP.md instead of the MySQL instructions below.**
+The updated Dockerfile supports both drivers; a non-empty DATABASE_URL selects
+PostgreSQL. The local RUN_DEMO.bat workflow still initializes MySQL only.
+
 Choose a Docker web service with this repository and the root Dockerfile. Apache listens on port 80, which Render can detect. The container supports both the site root and /wildlife-sentinel/ paths to preserve existing links. Set DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD for a separately hosted MySQL/MariaDB database. Render cannot use this PC's localhost database. Provision/import the existing schema into an EMPTY hosted database separately after reviewing it. Local demo scripts and credentials are excluded from the image and never automatically seeded in production. For DB_TLS=1 provide the provider's CA certificate at config/ca.pem. Uploads need persistent storage if they must survive redeployment.
 
 Docker is not installed here, so the image has not been built or deployed. External AI, WebSocket, SMS, camera and alarm integrations were not started or verified. The existing WS_URL and AI_SERVICE_URL settings still need real service endpoints where those features are required.
